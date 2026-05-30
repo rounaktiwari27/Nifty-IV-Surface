@@ -1,7 +1,13 @@
+# Virtual Environment
 venv/
+.venv/
+env/
+
+# Python/Jupyter Caches
 __pycache__/
+*.pyc
 .ipynb_checkpoints/
 
-data/*.csv
-
+# Operating System Files
 .DS_Store
+Thumbs.db
