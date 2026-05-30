@@ -1,14 +1,8 @@
-# Virtual Environment
 venv/
-.venv/
-env/
-
-# Python/Jupyter Caches
 __pycache__/
-*.pyc
 .ipynb_checkpoints/
 
-# Operating System Files
-.DS_Store
-Thumbs.db
 data/filled_dataset.csv
+submissions/submission.csv
+
+.DS_Store
