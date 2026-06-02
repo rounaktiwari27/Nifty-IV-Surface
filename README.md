@@ -67,16 +67,16 @@ Final safety net:
 ### Design Decisions
 
 **Why linear and not cubic/quadratic?**
-Higher-order fits perform worse. With 10–12 observed points per row, cubic splines overfit to noise and extrapolate badly at the wings. Linear outperforms cubic and quadratic.
+Higher-order fits perform worse. With only 10–12 observed points per row, cubic splines can overfit to noise and extrapolate poorly at the wings. Linear interpolation provides a simple and stable reconstruction.
 
 **Why separate CE and PE?**
-CE strikes span 25200–26500, PE strikes span 23800–25100 — no overlap. There is a structural level shift between the two wings of the smile. Joint fitting made predictions worse .
+CE strikes span 25200–26500, PE strikes span 23800–25100 — no overlap. There is a structural level shift between the two wings of the smile. Joint fitting made predictions worse.
 
 **Why not temporal as primary?**
 IV has lag-1 autocorrelation of 0.99+, which seems attractive. But the cross-sectional structure is more informative for predicting a missing strike. Temporal is used only as a fallback for degenerate rows.
 
 **No lookahead bias.**
-The cross-sectional approach uses only other strikes at the **same timestamp**. No future rows are touched at any point. The problem statement rules explicitly allow same-timestamp cross-sectional features.
+The primary reconstruction/cross-sectional approach uses only other strikes at the **same timestamp**. Temporal interpolation is used only as a fallback and is applied in a forward direction, ensuring that future observations are not used to reconstruct earlier timestamps.The problem statement rules explicitly allow same-timestamp cross-sectional features.
 
 ---
 
