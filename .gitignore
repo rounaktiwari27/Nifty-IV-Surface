@@ -1,8 +1,10 @@
 venv/
+.venv/
+
 __pycache__/
 .ipynb_checkpoints/
 
+.DS_Store
+
 data/filled_dataset.csv
 submissions/submission.csv
-
-.DS_Store
