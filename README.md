@@ -41,12 +41,7 @@ CE IV:   0.1352  0.1296  0.1253  0.1235  0.1198  0.1171
 
 This means: if a strike is missing, its neighbours at the **same timestamp** predict it far better than its own past values do.
 
-We verify this directly:
 
-```
-Cross-sectional LOO-MSE  : 0.000050   
-Temporal LOO-MSE         : 0.000520   ← 10× worse
-```
 
 ### Algorithm
 
@@ -72,13 +67,13 @@ Final safety net:
 ### Design Decisions
 
 **Why linear and not cubic/quadratic?**
-Higher-order fits were tested and performed worse. With 10–12 observed points per row, cubic splines overfit to noise and extrapolate badly at the wings. Linear outperformed cubic and quadratic.
+Higher-order fits perform worse. With 10–12 observed points per row, cubic splines overfit to noise and extrapolate badly at the wings. Linear outperforms cubic and quadratic.
 
 **Why separate CE and PE?**
 CE strikes span 25200–26500, PE strikes span 23800–25100 — no overlap. There is a structural level shift between the two wings of the smile. Joint fitting made predictions worse .
 
 **Why not temporal as primary?**
-IV has lag-1 autocorrelation of 0.99+, which seems attractive. But the cross-sectional structure is 10× more informative for predicting a missing strike. Temporal is used only as a fallback for degenerate rows.
+IV has lag-1 autocorrelation of 0.99+, which seems attractive. But the cross-sectional structure is more informative for predicting a missing strike. Temporal is used only as a fallback for degenerate rows.
 
 **No lookahead bias.**
 The cross-sectional approach uses only other strikes at the **same timestamp**. No future rows are touched at any point. The problem statement rules explicitly allow same-timestamp cross-sectional features.
@@ -88,7 +83,7 @@ The cross-sectional approach uses only other strikes at the **same timestamp**. 
 ## Project Structure
 
 ```
-NIFTY-IV-SURFACE/
+Nifty-IV-Surface/
 │
 ├── data/
 │   └── dataset.csv                    # original dataset with missing values
@@ -108,12 +103,12 @@ NIFTY-IV-SURFACE/
 
 ## Reproducing the Submission
 
-All steps are in `notebooks/eda.ipynb`. Run cells top to bottom:
+All steps are in `notebooks/iv_surface_reconstruction.ipynb`. Run cells top to bottom:
 
 ```bash
 # 1. Clone the repo
-git clone <your-repo-url>
-cd NIFTY-IV-SURFACE
+git clone https://github.com/rounaktiwari27/Nifty-IV-Surface.git
+cd Nifty-IV-Surface
 
 # 2. Install dependencies
 pip install -r requirements.txt
