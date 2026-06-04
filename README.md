@@ -1,9 +1,8 @@
 # NIFTY IV Surface Reconstruction
 
-Reconstructing missing implied volatility values across the NIFTY 50 options chain using cross-sectional smile interpolation.
+Reconstructing missing implied volatility values across the NIFTY 50 options chain using smile-aware cross-sectional reconstruction.
 
 ---
-
 
 ## Problem Statement
 
@@ -30,69 +29,100 @@ Each row is one 5-minute timestamp. Each column (e.g. `NIFTY27JAN2625200CE`) hol
 
 ## Approach
 
-### Core Insight: The Volatility Smile is Cross-Sectional
+### Core Insight: The Volatility Smile Has Structure Beyond Linearity
 
-At any single timestamp, IV is a smooth, structured function of strike price — this is the well-known **volatility smile**. For example:
+At any single timestamp, implied volatility varies smoothly across strikes and typically forms a volatility smile.
 
-```
-Strike:  25200   25300   25400   25500   25600   25700
-CE IV:   0.1352  0.1296  0.1253  0.1235  0.1198  0.1171
-```
+Rather than assuming the smile is locally linear, the reconstruction combines:
 
-This means: if a strike is missing, its neighbours at the **same timestamp** predict it far better than its own past values do.
+- Linear interpolation for stability
+- Local quadratic fitting for curvature awareness
 
-
+The objective is to preserve the smooth shape of the smile while remaining robust in sparse or noisy regions.
 
 ### Algorithm
 
-```
-For each row (timestamp):
-    ┌── CE pass ──────────────────────────────────────────┐
-    │  Collect observed (strike, IV) pairs for CE         │
-    │  Fit linear interpolant via scipy interp1d          │
-    │  Predict each missing CE strike by interpolation    │
-    │  (or linear extrapolation for edge strikes)         │
-    └─────────────────────────────────────────────────────┘
-    ┌── PE pass ──────────────────────────────────────────┐
-    │  Same procedure, independently for PE               │
-    └─────────────────────────────────────────────────────┘
+```text
+For each timestamp:
 
-Fallback (< 2 observed in a row):
-    pandas .interpolate(method='linear') along time axis
+    Separate CE and PE strikes
+
+    For every missing strike:
+
+        1. Compute linear interpolation estimate
+
+        2. Select nearby observed strikes
+
+        3. Fit a local quadratic model
+           on neighbouring strikes
+
+        4. Accept the fit only if it
+           satisfies curvature validation
+
+        5. Combine linear and quadratic
+           estimates using predefined weights
+
+    Handle edge strikes using extrapolation
+
+Fallback:
+    Forward-fill using historical observations
 
 Final safety net:
-    Column median for any remaining NaNs
+    Row mean imputation
+    Remaining NaNs filled with 0.0
 ```
 
-### Design Decisions
+### Smile-Aware Reconstruction
 
-**Why linear and not cubic/quadratic?**
-Higher-order fits perform worse. With only 10–12 observed points per row, cubic splines can overfit to noise and extrapolate poorly at the wings. Linear interpolation provides a simple and stable reconstruction.
+The method treats each timestamp independently and reconstructs missing values using neighbouring strikes from the same snapshot.
+
+A local quadratic model captures the curvature of the volatility smile, while linear interpolation provides a stable baseline.
+
+The final prediction combines both sources of information, allowing the reconstruction to adapt to different smile shapes while remaining resistant to noise and sparse observations.
+
+---
+
+## Design Decisions
+
+**Why use cross-sectional information?**
+
+At a given timestamp, neighbouring strikes contain direct information about the shape of the volatility smile. This structure is often more informative than relying primarily on temporal behaviour.
+
+**Why combine linear and quadratic models?**
+
+Linear interpolation is stable but ignores curvature. Quadratic fitting captures local smile geometry but can become unstable in sparse regions. Combining the two provides a balance between robustness and flexibility.
 
 **Why separate CE and PE?**
-CE strikes span 25200–26500, PE strikes span 23800–25100 — no overlap. There is a structural level shift between the two wings of the smile. Joint fitting made predictions worse.
 
-**Why not temporal as primary?**
-IV has lag-1 autocorrelation of 0.99+, which seems attractive. But the cross-sectional structure is more informative for predicting a missing strike. Temporal is used only as a fallback for degenerate rows.
+CE strikes span 25200–26500, while PE strikes span 23800–25100. Since the two wings occupy different strike ranges and exhibit different behaviour, they are reconstructed independently.
+
+**Why use temporal information only as a fallback?**
+
+The primary signal comes from the cross-sectional smile at the current timestamp. Temporal information is used only when insufficient cross-sectional information is available.
 
 **No lookahead bias.**
-The primary reconstruction/cross-sectional approach uses only other strikes at the **same timestamp**. Temporal interpolation is used only as a fallback and is applied in a forward direction, ensuring that future observations are not used to reconstruct earlier timestamps.The problem statement rules explicitly allow same-timestamp cross-sectional features.
+
+Cross-sectional reconstruction uses only values available at the same timestamp.
+
+Temporal fallback operates in a forward direction and does not use future observations.
 
 ---
 
 ## Project Structure
 
-```
-Nifty-IV-Surface/
+```text
+NIFTY-IV-SURFACE/
 │
 ├── data/
-│   └── dataset.csv                    # original dataset with missing values
+│   ├── dataset.csv
+│   └── filled_dataset.csv
 │
 ├── notebooks/
-│   └── iv_surface_reconstruction.ipynb # complete pipeline
+│   └── iv_surface_reconstruction.ipynb
 │
 ├── submissions/
-│   └── generated submission files
+│   ├── .gitkeep
+│   └── submission.csv
 │
 ├── requirements.txt
 ├── .gitignore
@@ -103,46 +133,39 @@ Nifty-IV-Surface/
 
 ## Reproducing the Submission
 
-All steps are in `notebooks/iv_surface_reconstruction.ipynb`. Run cells top to bottom:
+All steps are contained in `notebooks/iv_surface_reconstruction.ipynb`. Run the notebook cells from top to bottom:
 
 ```bash
-# 1. Clone the repo
+# 1. Clone the repository
 git clone https://github.com/rounaktiwari27/Nifty-IV-Surface.git
 cd Nifty-IV-Surface
 
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Open and run the notebook
+# 3. Launch Jupyter Notebook
 jupyter notebook notebooks/iv_surface_reconstruction.ipynb
 ```
 
 The notebook will:
-1. Load data/dataset.csv
-2. Perform leave-one-out cross-validation
-3. Reconstruct all missing IV values
-4. Generate a fully reconstructed IV surface
-5. Create the final Kaggle submission file in the required format
----
 
+1. Load `data/dataset.csv`
+2. Reconstruct all missing IV values
+3. Generate `filled_dataset.csv`
+4. Create the final Kaggle submission file in the required format
+
+---
 
 ## Validation
 
-Leave-one-out cross-validation on rows with ≥ 13 observed strikes (4,911 test points):
+The reconstruction approach was designed around the structural properties of implied volatility surfaces, particularly smoothness and smile behaviour across strikes.
 
-```python
-for each row with 13+ observed strikes:
-    for each observed strike:
-        temporarily remove it
-        predict it using the remaining strikes
-        record squared error
+Special care was taken to avoid look-ahead bias. Predictions are generated using information available at the current timestamp, while the temporal fallback relies only on historical observations.
 
-LOO_MSE = mean(all squared errors)
-```
-
-This is a conservative lower-bound estimate because it tests on interior points; the actual missing values include edge strikes where extrapolation introduces slightly higher error.
-
+---
 
 ## Key Takeaway
 
-The IV surface has strong **cross-sectional structure** at every timestamp. A missing strike is much better predicted by its neighbours in strike space than by its own history in time. Exploiting this single insight gives an improvement over the naive baseline.
+The implied volatility surface exhibits strong cross-sectional structure at every timestamp.
+
+By combining stable interpolation with local smile-aware curvature modelling, missing strikes can be reconstructed while preserving the overall geometry and smoothness of the volatility surface.
