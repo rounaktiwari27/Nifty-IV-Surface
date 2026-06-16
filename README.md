@@ -1,4 +1,4 @@
-# NIFTY IV Surface Reconstruction
+# Nifty IV Surface Reconstruction
 
 Reconstructing missing implied volatility values across the NIFTY 50 options chain using weighted smile-aware interpolation and volatility surface smoothing.
 
